@@ -26,7 +26,6 @@ function gibbs(niter::Integer, y::Array{Float64,3}; δ²::Real, κᵤ₀::Real, 
         for k = 1:9
             μ[k, i], acc[k, i] = updateμₖ(k, i, μ, δ², y[k, :], κᵤ[i-1])
         end
-        # μ[:, i] = [0.0211641 0.0153844 -0.117718 0.077531 0.00983722 -0.0508229 0.0955774 -0.0244998 -0.0264531]
         # On génère κᵤ
         μ̄ᵢ = neighborsMutualEffect(W, μ[:, i])
         κᵤ[i] = rand(fcκᵤ(W, μ[:, i], μ̄ᵢ))
@@ -52,7 +51,7 @@ function updateμₖ(k::Integer, i::Integer, μ::Matrix{<:Real}, δ²::Real, y::
     # Calcul de la différence de log-vraisemblance au niveau des données
     logL = loglikelihood(GeneralizedExtremeValue(μ̃, 1.0, 0.0), y) - loglikelihood(GeneralizedExtremeValue(μ₀, 1.0, 0.0), y)
     # Calcul de la différence de log-vraisemblance au niveau latent
-    lf = logpdf(iGMRFfc(k, i, κᵤ, W, μ), μ̃) - logpdf(iGMRFfc(k, i, κᵤ, W, μ), μ[k, i-1])
+    lf = logpdf(fcIGMRF(k, i, κᵤ, W, μ), μ̃) - logpdf(fcIGMRF(k, i, κᵤ, W, μ), μ[k, i-1])
     # Somme des deux différences
     lr = logL + lf
     # Acceptation
@@ -66,7 +65,7 @@ end
 """
 Loi conditionnelle complète du iGMRF
 """
-function iGMRFfc(k::Integer, i::Integer, κᵤ::Real, W::SparseMatrixCSC, μ::Matrix{<:Real})
+function fcIGMRF(k::Integer, i::Integer, κᵤ::Real, W::SparseMatrixCSC, μ::Matrix{<:Real})
 
     # μ partially updated
     μUpdated = vcat(μ[1:k, i], μ[k+1:end, i-1])
@@ -104,18 +103,4 @@ function neighborsMutualEffect(W::SparseMatrixCSC, u::Vector{<:Real})
     W⁻u = W⁻ * u
     # Multiplication par l'inverse de la diagonale de W
     return -spdiagm(1 ./ diag(W)) * W⁻u
-end
-
-"""
-Calcul des effets des voisins sur la cellule k
-A partir des paramètres les plus à jour possibles.
-"""
-function neighborsEffect(i::Integer, k::Integer, W::SparseMatrixCSC, μ::Matrix{<:Real})
-    # Considérons qu'on s'intéresse à μₖ
-    # Pour p < k, les μₚ ont déjà été mis à jour (μ[p, i])
-    # On utilise la version précédente pour les p > k (μ[p, i-1])
-    μUpdated = vcat(μ[1:k, i], μ[k+1:end, i-1])
-    # Somme pondérée par les coefficients de la matrice W
-    # μ[k, i] = 0 ce qui annule le coefficient Wₖₖ
-    return -1 / W[k, k] * sum(μUpdated' * W[k, :])
 end

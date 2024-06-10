@@ -1,5 +1,20 @@
 using SparseArrays, LinearAlgebra
 
+struct iGMRF
+    m₁::Int64
+    m₂::Int64
+    r::Int64
+    W::SparseMatrixCSC
+    W̄::SparseMatrixCSC
+    κᵤ::Float64
+end
+
+function iGMRF(m₁::Integer, m₂::Integer, κᵤ::Real)::iGMRF
+    W = buildStructureMatrix(m₁, m₂)
+    W̄ = W - spdiagm(diag(W))
+    return iGMRF(m₁, m₂, 1, W, W̄, κᵤ)
+end
+
 function buildStructureMatrix(m₁::Integer, m₂::Integer)
     # Vecteur des voisins horizontaux
     v = ones(Int64, m₁)
@@ -26,15 +41,15 @@ end
 """
 Génère un iGMRF à partir d'un GMRF sous contrainte linéaire.
 """
-function generateIGMRF(κᵤ::Real, W::SparseMatrixCSC, m₁::Integer, m₂::Integer)
+function sample(F::iGMRF)::Vector{<:Real}
     # Paramètres
-    m = m₁ * m₂
-    r = 1
+    m = F.m₁ * F.m₂
+    r = F.r
     # 1er vecteur propre de Q
     e₁ = ones(m, 1)
     A = e₁
     # Création de la matrice de précision (impropre ??)
-    Q = κᵤ * W + e₁ * e₁' # ??
+    Q = F.κᵤ * F.W + e₁ * e₁' # ??
     # Factorisation de cholesky
     C = cholesky(Q)
     L = C.L
@@ -47,9 +62,9 @@ function generateIGMRF(κᵤ::Real, W::SparseMatrixCSC, m₁::Integer, m₂::Int
     # On résout Vₙₓₖ = Q⁻¹Aᵀ
     V = C \ A
     # On calule Wₖₓₖ = AV
-    W = A' * V
+    Wₖₓₖ = A' * V
     # On calule Uₖₓₙ = W⁻¹Vᵀ
-    U = W \ (V')
+    U = Wₖₓₖ \ (V')
     # On calcule c = Ax - e
     c = A' * x
     # On calcule x* = x - Uᵀc
