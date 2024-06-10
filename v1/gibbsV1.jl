@@ -1,4 +1,4 @@
-using Distributions
+using Distributions: loglikelihood
 
 include("metropolis.jl")
 include("GMRF.jl")
@@ -24,9 +24,7 @@ function gibbs(niter::Integer, y::Array{Float64,3}; δ²::Real, κᵤ₀::Real, 
     for i = 2:niter
         # On génère les μᵢ | κᵤ, μ₋ᵢ
         for k = 1:9
-            μ̄ₖ = neighborsEffect(i, k, W, μ)
-            f̃μ(μ::Real) = fcμ(μ, y=y[k, :], κᵤ=κᵤ[i-1], Wₖₖ=W[k, k], μ̄ₖ=μ̄ₖ)
-            μ[k, i], acc[k, i] = metropolisOneStep(μ[k, i-1], δ², f̃μ)
+            μ[k, i], acc[k, i] = updateμₖ(k, i, μ, δ², y[k, :], κᵤ[i-1])
         end
         # μ[:, i] = [0.0211641 0.0153844 -0.117718 0.077531 0.00983722 -0.0508229 0.0955774 -0.0244998 -0.0264531]
         # On génère κᵤ
@@ -43,10 +41,47 @@ function gibbs(niter::Integer, y::Array{Float64,3}; δ²::Real, κᵤ₀::Real, 
 end
 
 """
-Fonction de densité de la loi conditionnelle complète de μ.
+Tentative de réorganisaion des itérations --> mêmes résultats...
 """
-function fcμ(μ::Real; y::Array, κᵤ::Real, Wₖₖ::Real, μ̄ₖ::Real)
-    return sum(logpdf.(GeneralizedExtremeValue(μ, 1.0, 0.0), y)) + logpdf(Normal(μ̄ₖ, 1 / (κᵤ * Wₖₖ)), μ)
+function updateμₖ(k::Integer, i::Integer, μ::Matrix{<:Real}, δ²::Real, y::Vector{<:Real}, κᵤ::Real)
+    # On génère un candidat pour Ui
+    # Et donc pour μ
+    μ̃ = rand(Normal(μ[k, i-1], δ²))
+    # État précédent
+    μ₀ = μ[k, i-1]
+    # Calcul de la différence de log-vraisemblance au niveau des données
+    logL = loglikelihood(GeneralizedExtremeValue(μ̃, 1.0, 0.0), y) - loglikelihood(GeneralizedExtremeValue(μ₀, 1.0, 0.0), y)
+    # Calcul de la différence de log-vraisemblance au niveau latent
+    lf = logpdf(iGMRFfc(k, i, κᵤ, W, μ), μ̃) - logpdf(iGMRFfc(k, i, κᵤ, W, μ), μ[k, i-1])
+    # Somme des deux différences
+    lr = logL + lf
+    # Acceptation
+    if lr > log(rand())
+        return μ̃, true
+    else
+        return μ[k, i-1], false
+    end
+end
+
+"""
+Loi conditionnelle complète du iGMRF
+"""
+function iGMRFfc(k::Integer, i::Integer, κᵤ::Real, W::SparseMatrixCSC, μ::Matrix{<:Real})
+
+    # μ partially updated
+    μUpdated = vcat(μ[1:k, i], μ[k+1:end, i-1])
+
+    # Structure matrix without its diagonal
+    W̄ = W - spdiagm(diag(W))
+
+    # Parameters of the canonical Normal
+    Q = κᵤ * Array(diag(W))
+    b = -κᵤ * (W̄ * μUpdated)
+
+    pd = NormalCanon(b[k], Q[k])
+
+    return pd
+
 end
 
 """
@@ -83,40 +118,4 @@ function neighborsEffect(i::Integer, k::Integer, W::SparseMatrixCSC, μ::Matrix{
     # Somme pondérée par les coefficients de la matrice W
     # μ[k, i] = 0 ce qui annule le coefficient Wₖₖ
     return -1 / W[k, k] * sum(μUpdated' * W[k, :])
-end
-
-# ------------------------------------------------
-
-"""
-Tentative de réorganisaion des itérations --> mêmes résultats...
-"""
-function updateμₖ(k::Integer, i::Integer, u::Matrix{<:Real}, δ²::Real, y::Vector{<:Real}, κᵤ::Real)
-    # On génère un candidat pour Ui
-    ũ = rand(Normal(u[k, i-1], δ²))
-    # On en déduit un candidat pour μ
-    μ̃ = ũ
-    μ₀ = u[k, i-1]
-    # Calcul de la différence de log-vraisemblance au niveau des données
-    logL = loglikelihood(GeneralizedExtremeValue(μ̃, 1.0, 0.0), y) - loglikelihood(GeneralizedExtremeValue(μ₀, 1.0, 0.0), y)
-    # Calcul de la différence de log-vraisemblance au niveau latent
-    ūₖ = neighborsEffect(i, k, W, u)
-    Wₖₖ = W[k, k]
-    lf = logpdf(Normal(ūₖ, 1 / (κᵤ * Wₖₖ)), ũ) - logpdf(Normal(ūₖ, 1 / (κᵤ * Wₖₖ)), u[k, i-1])
-    # Somme des deux différences
-    lr = logL + lf
-    # Acceptation
-    if lr > log(rand())
-        return ũ, true
-    else
-        return u[k, i-1], false
-    end
-end
-
-
-"""
-Fonction de densité de la loi conditionnelle complète de U.
-"""
-function fcU(u::Real; κᵤ::Real, Wᵢᵢ::Real, i::Integer, k::Integer)
-    ūᵢ = neighborsEffect(i, k, W, μ)
-    return loglikelihood(Normal(ūᵢ, 1 / (κᵤ * Wᵢᵢ)), u)
 end
