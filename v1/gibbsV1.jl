@@ -23,7 +23,7 @@ function gibbs(niter::Integer, y::Array{Float64,3}; δ²::Real, κᵤ₀::Real, 
     # Itérations
     for i = 2:niter
         # On génère les μᵢ | κᵤ, μ₋ᵢ
-        for k = 1:9
+        for k = 1:m
             μ[k, i], acc[k, i] = updateμₖ(k, i, μ, δ², y[k, :], κᵤ[i-1])
         end
         # On génère κᵤ
