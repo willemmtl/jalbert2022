@@ -19,22 +19,22 @@ function generateData(grid_params::Array{<:Real}, nobs::Integer)
     return grid_obs
 end
 
-function generateTargetGridV1(; m₁::Integer, m₂::Integer, κᵤ::Real, W::SparseMatrixCSC)
+function generateTargetGridV1(F::iGMRF)
     # Paramètre de position
-    μ = generateGEVParamV1(m₁=m₁, m₂=m₂, κᵤ=κᵤ, W=W)
+    μ = generateGEVParamV1(F)
     # Paramètre d'échelle
-    ϕ = zeros(m₁, m₂)
+    ϕ = zeros(F.m₁, F.m₂)
     # Paramètre de forme
-    ξ = zeros(m₁, m₂)
+    ξ = zeros(F.m₁, F.m₂)
     # Concatène les paramètres pour former la grille finale m₁xm₂x3
     return cat(μ, exp.(ϕ), ξ, dims=3)
 end
 
-function generateGEVParamV1(; m₁::Integer, m₂::Integer, κᵤ::Real, W::SparseMatrixCSC)
+function generateGEVParamV1(F::iGMRF)
     # Nombre total de cellules
     m = m₁ * m₂
     # Génère les effets spatiaux
-    s = generateIGMRF(κᵤ, W, m₁, m₂)
+    s = sample(F)
     # Il n'y a pas de variable explicative
     # On renvoie donc directement les effets spatiaux
     return reshape(s, m₁, m₂)'
