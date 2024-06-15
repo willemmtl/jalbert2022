@@ -28,12 +28,12 @@ include("../GMRF.jl");
 
     end
 
-    @testset "fcκᵤ(W, μ)" begin
+    @testset "fcκᵤ(μ, W)" begin
 
         W = buildStructureMatrix(2, 2)
         μ = ones(4)
 
-        @test fcκᵤ(W, μ) == Gamma(3, 100 / 401)
+        @test fcκᵤ(μ, W=W) == Gamma(3, 100 / 401)
 
     end
 
