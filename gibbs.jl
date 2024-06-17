@@ -1,7 +1,7 @@
 using Distributions: loglikelihood
 
 include("metropolis.jl")
-include("GMRF.jl")
+include("iGMRF.jl")
 
 """
     gibbs(niter, y; δ², κᵤ₀, μ₀, W)

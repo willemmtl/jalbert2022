@@ -1,6 +1,6 @@
 using Random, Distributions, SparseArrays
 
-include("GMRF.jl")
+include("iGMRF.jl")
 
 function generateData(grid_params::Array{<:Real}, nobs::Integer)
 
