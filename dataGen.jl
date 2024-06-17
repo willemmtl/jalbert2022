@@ -4,19 +4,20 @@ include("iGMRF.jl")
 
 function generateData(grid_params::Array{<:Real}, nobs::Integer)
 
-    # Array qui contiendra les observations pour chaque cellule
-    grid_obs = zeros(size(grid_params, 1), size(grid_params, 2), nobs)
+    # Vecteur qui contiendra les observations pour chaque cellule
+    Y = Vector{Float64}[]
 
     for i = 1:size(grid_params, 1)
         for j = 1:size(grid_params, 2)
             # Récupération des paramètres de la cellule courante
             gev_params = grid_params[i, j, :]
             # Génération des observations pour la cellule courante
-            grid_obs[i, j, :] = rand(GeneralizedExtremeValue(gev_params...), nobs)
+            y = rand(GeneralizedExtremeValue(gev_params...), nobs)
+            push!(Y, y)
         end
     end
 
-    return grid_obs
+    return Y
 end
 
 function generateTargetGrid(F::iGMRF)
