@@ -14,17 +14,16 @@ Print the acceptation rate of the GEV's location parameter for each grid cell.
 # Arguments
 
 - `niter::Integer`: The number of iterations for the gibbs algorithm.
-- `y::Array{Float64,3}`: Three-dimension array containing the observations of each grid cell.
+- `y::Vector{Vector{Float64}}`: Vector containing the observations of each grid cell.
+- `m₁::Integer`: Number of rows of the grid.
+- `m₂::Integer`: Number of columns of the grid.
 - `δ²::Real`: Instrumental variance for the one-iteration Metropolis algorithm.
 - `κᵤ₀::Real`: Initial value of the inferred GMRF's precision parameter.
 - `μ₀::Vector{<:Real}`: Initial values of the inferred GEV's location parameter.
-- `W::SparseMatrixCSC`: Structure matrix of the inferred GMRF.
 """
-function gibbs(niter::Integer, y::Array{Float64,3}; δ²::Real, κᵤ₀::Real, μ₀::Vector{<:Real}, W::SparseMatrixCSC)
+function gibbs(niter::Integer, y::Vector{Vector{Float64}}; m₁::Integer, m₂::Integer, δ²::Real, κᵤ₀::Real, μ₀::Vector{<:Real})
 
-    m = length(μ₀)
-    nobs = size(y, 3)
-    y = reshape(y, m, nobs)
+    m = m₁ * m₂
 
     κᵤ = zeros(niter)
     κᵤ[1] = κᵤ₀
@@ -35,11 +34,10 @@ function gibbs(niter::Integer, y::Array{Float64,3}; δ²::Real, κᵤ₀::Real, 
 
     for i = 2:niter
         # Generate μᵢ | κᵤ, μ₋ᵢ
-        for k = 1:m
-            μ[k, i], acc[k, i] = updateμₖ(k, i, μ, δ², y[k, :], κᵤ[i-1])
-        end
+        F = iGMRF(m₁, m₂, κᵤ[i-1])
+        μ[:, i], acc[:, i] = updateμ(F, μ, i, δ²=δ², y=y)
         # Generate κᵤ
-        κᵤ[i] = rand(fcκᵤ(μ[:, i], W=W))
+        κᵤ[i] = rand(fcκᵤ(μ[:, i], W=F.G.W))
     end
 
     accRates = count(acc, dims=2) ./ (niter - 1) .* 100
@@ -52,35 +50,39 @@ end
 
 
 """
-    updateμₖ(k, i, μ, δ², y, κᵤ)
-
-Update the inferred GEV's location parameter at iteration i of the gibbs algorithm.
-
-Consist in a one-iteration Metropolis algorithm.
-
-# Arguments
-
-- `k::Integer`: Numero of the current cell.
-- `i::Integer`: Numero of the current gibbs iteration.
-- `μ::Matrix{<:Real}`: Current trace of the location parameter for each grid cell.
-- `δ²::Real`: Instrumental variance.
-- `y::Vector{<:Real}`: Observations for cell k.
-- `κᵤ::Real`: Last updated value of the precision parameter.
 """
-function updateμₖ(k::Integer, i::Integer, μ::Matrix{<:Real}, δ²::Real, y::Vector{<:Real}, κᵤ::Real)
+function updateμ(F::iGMRF, μ::Matrix{<:Real}, i::Integer; δ²::Real, y::Vector{Vector{Float64}})
 
-    μ̃ = rand(Normal(μ[k, i-1], δ²))
-    μ₀ = μ[k, i-1]
+    μꜝ = μ[:, i-1]
+    μ̃ = rand.(Normal.(μꜝ, δ²))
 
-    logL = datalevelloglike(μ̃, y) - datalevelloglike(μ₀, y)
-    lf = latentlevelloglike(k, i, μ̃; κᵤ=κᵤ, W=W, μ=μ) - latentlevelloglike(k, i, μ₀; κᵤ=κᵤ, W=W, μ=μ)
-    lr = logL + lf
+    acc = falses(F.G.m₁ * F.G.m₂)
 
-    if lr > log(rand())
-        return μ̃, true
-    else
-        return μ[k, i-1], false
+    logL = datalevelloglike.(μ̃, y) - datalevelloglike.(μꜝ, y)
+    for j in eachindex(F.G.condIndSubsets)
+        ind = F.G.condIndSubsets[j]
+        accepted = subsetMetropolis(F, μꜝ, μ̃, logL, ind)
+        setindex!(μꜝ, μ̃[ind][accepted], ind[accepted])
+        acc[ind[accepted]] .= true
     end
+
+    return μꜝ, acc
+
+end
+
+
+"""
+"""
+function subsetMetropolis(F::iGMRF, μꜝ::Vector{<:Real}, μ̃::Vector{<:Real}, logL::Vector{<:Real}, ind::Vector{<:Integer})
+
+    pd = fcIGMRF(F, μꜝ)[ind]
+
+    lf = logpdf.(pd, μ̃[ind]) .- logpdf.(pd, μꜝ[ind])
+
+    lr = logL[ind] .+ lf
+
+    return lr .> log.(rand(length(ind)))
+
 end
 
 
@@ -102,48 +104,21 @@ end
 
 
 """
-    latentlevelloglike(k, i, value; κᵤ, W, μ)
-
-Compute the log-likelihhod at the latent level evaluated at `value` knowing the neighbors' location parameter.
-
-# Arguments
-
-- `k::Integer`: Numero of the current cell.
-- `i::Integer`: Numero of the current gibbs iteration.
-- `value`: Value for which the log-likelihood is evaluated.
-- `κᵤ::Real`: Last updated value of the precision parameter.
-- `W::SparseMatrixCSC`: Structure matrix of the inferred GMRF.
-- `μ::Matrix{<:Real}`: Last updated trace of the location parameter for each grid cell.
-"""
-function latentlevelloglike(k::Integer, i::Integer, value::Real; κᵤ::Real, W::SparseMatrixCSC, μ::Matrix{<:Real})
-    return logpdf(fcIGMRF(k, i, κᵤ=κᵤ, W=W, μ=μ), value)
-end
-
-
-"""
-    fcIGMRF(k, i; κᵤ, W, μ)
+    fcIGMRF(F, μ₀)
 
 Compute the probability density of the full conditional function of the GEV's location parameter due to the iGMRF.
 
 # Arguments
 
-- `k::Integer`: Numero of the current cell.
-- `i::Integer`: Numero of the current gibbs iteration.
-- `κᵤ::Real`: Last updated value of the precision parameter.
-- `W::SparseMatrixCSC`: Structure matrix of the inferred GMRF.
-- `μ::Matrix{<:Real}`: Last updated trace of the location parameter for each grid cell.
+- `F::iGMRF`: Inferred iGMRF with the last update of the precision parameter.
+- `μ::Vector{<:Real}`: Last updated location parameters.
 """
-function fcIGMRF(k::Integer, i::Integer; κᵤ::Real, W::SparseMatrixCSC, μ::Matrix{<:Real})
+function fcIGMRF(F::iGMRF, μ::Vector{<:Real})
 
-    # μ partially updated
-    μUpdated = vcat(μ[1:k, i], μ[k+1:end, i-1])
+    Q = F.κᵤ * Array(diag(F.G.W))
+    b = -F.κᵤ * (F.G.W̄ * μ)
 
-    W̄ = W - spdiagm(diag(W))
-
-    Q = κᵤ * Array(diag(W))
-    b = -κᵤ * (W̄ * μUpdated)
-
-    return NormalCanon(b[k], Q[k])
+    return NormalCanon.(b, Q)
 
 end
 
