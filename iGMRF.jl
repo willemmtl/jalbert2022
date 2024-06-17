@@ -105,7 +105,6 @@ Use the GMRF under linear constraints method.
 function sample(F::iGMRF)::Vector{<:Real}
     # Paramètres
     m = F.G.m₁ * F.G.m₂
-    r = F.r
     # 1er vecteur propre de Q
     e₁ = ones(m, 1)
     A = e₁
