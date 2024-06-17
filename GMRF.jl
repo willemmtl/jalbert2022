@@ -1,19 +1,25 @@
 using SparseArrays, LinearAlgebra
 
+include("grid.jl")
+
 struct iGMRF
-    m₁::Int64
-    m₂::Int64
+    G::GridStructure
     r::Int64
-    W::SparseMatrixCSC
-    W̄::SparseMatrixCSC
     κᵤ::Float64
 end
+
 
 function iGMRF(m₁::Integer, m₂::Integer, κᵤ::Real)::iGMRF
     W = buildStructureMatrix(m₁, m₂)
     W̄ = W - spdiagm(diag(W))
-    return iGMRF(m₁, m₂, 1, W, W̄, κᵤ)
+
+    condIndSubsets = markCondIndSubsets(m₁, m₂)
+
+    G = GridStructure(m₁, m₂, condIndSubsets, W, W̄)
+
+    return iGMRF(G, 1, κᵤ)
 end
+
 
 function buildStructureMatrix(m₁::Integer, m₂::Integer)
     # Vecteur des voisins horizontaux
@@ -38,18 +44,42 @@ function buildStructureMatrix(m₁::Integer, m₂::Integer)
     return -D + spdiagm(0 => length.(nbs))
 end
 
+
+"""
+    markCondIndSubsets(m₁, m₂)
+
+Partition the grid in two parts, marking each cell with '1' or '2'.
+The partitioning follows the Markov hypothesis : two cells within the same subset are conditionally independant.
+This partitioning aims at accelerating computings.
+
+# Arguments
+
+- `m₁::Integer`: Number of rows of the grid
+- `m₂::Integer`: Number of columns of the grid
+"""
+function markCondIndSubsets(m₁::Integer, m₂::Integer)::Vector{Vector{Integer}}
+
+    condIndSubsetIndex = 2 * ones(Int64, m₁, m₂)
+    condIndSubsetIndex[1:2:end, 1:2:end] .= 1
+    condIndSubsetIndex[2:2:end, 2:2:end] .= 1
+
+    return Array[findall(vec(condIndSubsetIndex) .== i) for i = 1:2]
+
+end
+
+
 """
 Génère un iGMRF à partir d'un GMRF sous contrainte linéaire.
 """
 function sample(F::iGMRF)::Vector{<:Real}
     # Paramètres
-    m = F.m₁ * F.m₂
+    m = F.G.m₁ * F.G.m₂
     r = F.r
     # 1er vecteur propre de Q
     e₁ = ones(m, 1)
     A = e₁
     # Création de la matrice de précision (impropre ??)
-    Q = F.κᵤ * F.W + e₁ * e₁' # ??
+    Q = F.κᵤ * F.G.W + e₁ * e₁' # ??
     # Factorisation de cholesky
     C = cholesky(Q)
     L = C.L
