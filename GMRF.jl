@@ -2,6 +2,7 @@ using SparseArrays, LinearAlgebra
 
 include("grid.jl")
 
+
 struct iGMRF
     G::GridStructure
     r::Int64
@@ -9,6 +10,17 @@ struct iGMRF
 end
 
 
+"""
+    iGMRF(m₁, m₂, κᵤ)
+
+Create a iGMRF object given the grid dimensions a the precision parameter.
+
+# Arguments
+
+- `m₁::Integer`: Number of rows of the grid.
+- `m₂::Integer`: Number of columns of the grid.
+- `κᵤ::Real`: Precision parameter.
+"""
 function iGMRF(m₁::Integer, m₂::Integer, κᵤ::Real)::iGMRF
     W = buildStructureMatrix(m₁, m₂)
     W̄ = W - spdiagm(diag(W))
@@ -21,6 +33,16 @@ function iGMRF(m₁::Integer, m₂::Integer, κᵤ::Real)::iGMRF
 end
 
 
+"""
+    buildStructureMatrix(m₁, m₂)
+
+Build the 1-order iGMRF's structure matrix given the grid dimensions.
+
+# Arguments
+
+- `m₁::Integer`: Number of rows of the grid.
+- `m₂::Integer`: Number of columns of the grid.
+"""
 function buildStructureMatrix(m₁::Integer, m₂::Integer)
     # Vecteur des voisins horizontaux
     v = ones(Int64, m₁)
@@ -49,13 +71,14 @@ end
     markCondIndSubsets(m₁, m₂)
 
 Partition the grid in two parts, marking each cell with '1' or '2'.
+
 The partitioning follows the Markov hypothesis : two cells within the same subset are conditionally independant.
 This partitioning aims at accelerating computings.
 
 # Arguments
 
-- `m₁::Integer`: Number of rows of the grid
-- `m₂::Integer`: Number of columns of the grid
+- `m₁::Integer`: Number of rows of the grid.
+- `m₂::Integer`: Number of columns of the grid.
 """
 function markCondIndSubsets(m₁::Integer, m₂::Integer)::Vector{Vector{Integer}}
 
@@ -69,7 +92,15 @@ end
 
 
 """
-Génère un iGMRF à partir d'un GMRF sous contrainte linéaire.
+    sample(F)
+
+Generate an iGMRF sample.
+
+Use the GMRF under linear constraints method.
+
+# Arguments
+
+- `F::iGMRF`: iGMRF .
 """
 function sample(F::iGMRF)::Vector{<:Real}
     # Paramètres
