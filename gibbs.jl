@@ -35,7 +35,7 @@ function gibbs(niter::Integer, y::Vector{Vector{Float64}}; m₁::Integer, m₂::
     for i = 2:niter
         # Generate μᵢ | κᵤ, μ₋ᵢ
         F = iGMRF(m₁, m₂, κᵤ[i-1])
-        μ[:, i], acc[:, i] = updateμ(F, μ, i, δ²=δ², y=y)
+        μ[:, i], acc[:, i] = sampleμ(F, μ, i, δ²=δ², y=y)
         # Generate κᵤ
         κᵤ[i] = rand(fcκᵤ(μ[:, i], W=F.G.W))
     end
@@ -50,8 +50,19 @@ end
 
 
 """
+    sampleμ(F, μ, iInteger; δ², y)
+
+Sample μ from the last updated iGMRF.
+
+# Arguments
+
+- `F::iGMRF`: iGMRF with its last updated parameters.
+- `μ::Matrix{<:Real}`: Trace of each inferred GEV's location parameter.
+- `i::Integer`: Numero of iteration.
+- `δ²::Real`: Instrumental variance for the one-iteration Metropolis algorithm.
+- `y::Vector{Vector{Float64}}`: Vector containing the observations of each grid cell.
 """
-function updateμ(F::iGMRF, μ::Matrix{<:Real}, i::Integer; δ²::Real, y::Vector{Vector{Float64}})
+function sampleμ(F::iGMRF, μ::Matrix{<:Real}, i::Integer; δ²::Real, y::Vector{Vector{Float64}})
 
     μꜝ = μ[:, i-1]
     μ̃ = rand.(Normal.(μꜝ, δ²))
@@ -72,6 +83,17 @@ end
 
 
 """
+    subsetMetropolis(F, μꜝ, μ̃, logL, ind)
+
+Apply the one-iteration Metropolis algorithm to all of the cells in the same grid partition.
+
+# Arguments
+
+- `F::iGMRF`: iGMRF with its last updated parameters.
+- `μꜝ::Vector{<:Real}`: The current state of μ (which is updated for each partition before being returned).
+- `μ̃::Vector{<:Real}`: Candidates for the Metropolis algorithm.
+- `logL::Vector{<:Real}`: Data-level log-likelihood difference for each cell (between candidates and last value).
+- `ind::Vector{<:Integer}`: Cells' indices of the current partition.
 """
 function subsetMetropolis(F::iGMRF, μꜝ::Vector{<:Real}, μ̃::Vector{<:Real}, logL::Vector{<:Real}, ind::Vector{<:Integer})
 
