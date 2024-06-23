@@ -132,3 +132,23 @@ function sample(F::iGMRF)::Vector{<:Real}
 
     return y
 end
+
+
+"""
+    fcIGMRF(F, μ₀)
+
+Compute the probability density of the full conditional function of the GEV's location parameter due to the iGMRF.
+
+# Arguments
+
+- `F::iGMRF`: Inferred iGMRF with the last update of the precision parameter.
+- `μ::Vector{<:Real}`: Last updated location parameters.
+"""
+function fcIGMRF(F::iGMRF, μ::Vector{<:Real})
+
+    Q = F.κᵤ * Array(diag(F.G.W))
+    b = -F.κᵤ * (F.G.W̄ * μ)
+
+    return NormalCanon.(b, Q)
+
+end

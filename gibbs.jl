@@ -1,3 +1,4 @@
+using ForwardDiff
 using Distributions: loglikelihood
 
 include("metropolis.jl")
@@ -65,14 +66,16 @@ Sample μ from the last updated iGMRF.
 function sampleμ(F::iGMRF, μ::Matrix{<:Real}, i::Integer; δ²::Real, y::Vector{Vector{Float64}})
 
     μꜝ = μ[:, i-1]
-    μ̃ = rand.(Normal.(μꜝ, δ²))
 
     acc = falses(F.G.m₁ * F.G.m₂)
+
+    qLangevin = instrumentalMala(F, μꜝ, y, δ²)
+    μ̃ = rand.(qLangevin)
 
     logL = datalevelloglike.(μ̃, y) - datalevelloglike.(μꜝ, y)
     for j in eachindex(F.G.condIndSubsets)
         ind = F.G.condIndSubsets[j]
-        accepted = subsetMetropolis(F, μꜝ, μ̃, logL, ind)
+        accepted = subsetMala(F, μꜝ, μ̃, logL, ind)
         setindex!(μꜝ, μ̃[ind][accepted], ind[accepted])
         acc[ind[accepted]] .= true
     end
@@ -83,7 +86,7 @@ end
 
 
 """
-    subsetMetropolis(F, μꜝ, μ̃, logL, ind)
+    subsetMala(F, μꜝ, μ̃, logL, ind)
 
 Apply the one-iteration Metropolis algorithm to all of the cells in the same grid partition.
 
@@ -95,15 +98,31 @@ Apply the one-iteration Metropolis algorithm to all of the cells in the same gri
 - `logL::Vector{<:Real}`: Data-level log-likelihood difference for each cell (between candidates and last value).
 - `ind::Vector{<:Integer}`: Cells' indices of the current partition.
 """
-function subsetMetropolis(F::iGMRF, μꜝ::Vector{<:Real}, μ̃::Vector{<:Real}, logL::Vector{<:Real}, ind::Vector{<:Integer})
+function subsetMala(F::iGMRF, μꜝ::Vector{<:Real}, μ̃::Vector{<:Real}, logL::Vector{<:Real}, ind::Vector{<:Integer})
 
     pd = fcIGMRF(F, μꜝ)[ind]
 
-    lf = logpdf.(pd, μ̃[ind]) .- logpdf.(pd, μꜝ[ind])
+    logπ̃(μ::Vector{<:Real}) = logpdf.(pd, μ[ind]) .+ datalevelloglike.(μ, y)[ind]
+    logq(μᵢ₋₁::Vector{<:Real}, μ::Vector{<:Real}) = logpdf.(instrumentalMala(F, μᵢ₋₁, y, δ²), μ)[ind]
 
-    lr = logL[ind] .+ lf
+    lr = logπ̃(μ̃) .+ logq(μꜝ, μ̃) .- (logπ̃(μꜝ) .+ logq(μ̃, μꜝ))
 
     return lr .> log.(rand(length(ind)))
+
+end
+
+
+"""
+    instrumentalMala(F, μ, y)
+
+Compute the Instrumental Density for the MALA algorithm.
+"""
+function instrumentalMala(F::iGMRF, μ::Vector{<:Real}, y::Vector{Vector{Float64}}, δ²::Real)
+
+    f(μ::Vector{<:Real}) = datalevelloglike.(μ, y) + latentlevelloglike(F, μ)
+    ∇f = [ForwardDiff.derivative(f[i], μ[i]) for i in 1:length(μ)]
+
+    return Normal.(μ + δ² / 2 * ∇f, δ²)
 
 end
 
@@ -126,21 +145,15 @@ end
 
 
 """
-    fcIGMRF(F, μ₀)
+    latentlevelloglike(F, μ)
 
-Compute the probability density of the full conditional function of the GEV's location parameter due to the iGMRF.
-
-# Arguments
-
-- `F::iGMRF`: Inferred iGMRF with the last update of the precision parameter.
-- `μ::Vector{<:Real}`: Last updated location parameters.
+Compute the log-likelihhod at the data level evaluated at `μ` knowing the iGMRF `F`.
 """
-function fcIGMRF(F::iGMRF, μ::Vector{<:Real})
+function latentlevelloglike(F::iGMRF, μ::Vector{<:Real})
 
-    Q = F.κᵤ * Array(diag(F.G.W))
-    b = -F.κᵤ * (F.G.W̄ * μ)
+    pd = fcIGMRF(F, μ)
 
-    return NormalCanon.(b, Q)
+    return logpdf.(pd, μ)
 
 end
 
