@@ -1,3 +1,4 @@
+using ForwardDiff
 using Distributions: loglikelihood
 
 include("metropolis.jl")
@@ -69,18 +70,31 @@ Consist in a one-iteration Metropolis algorithm.
 """
 function updateμₖ(k::Integer, i::Integer, μ::Matrix{<:Real}, δ²::Real, y::Vector{<:Real}, κᵤ::Real)
 
-    μ̃ = rand(Normal(μ[k, i-1], δ²))
     μ₀ = μ[k, i-1]
 
-    logL = datalevelloglike(μ̃, y) - datalevelloglike(μ₀, y)
-    lf = latentlevelloglike(k, i, μ̃; κᵤ=κᵤ, W=W, μ=μ) - latentlevelloglike(k, i, μ₀; κᵤ=κᵤ, W=W, μ=μ)
-    lr = logL + lf
+    logπ̃(μ̃::Real) = datalevelloglike(μ̃, y) + latentlevellogpdf(k, i, μ̃; κᵤ=κᵤ, W=W, μ=μ)
+    logq(μ₀::Real, μ̃::Real) = logpdf(instrumentalMala(μ₀, logπ̃, δ²), μ̃)
+
+    μ̃ = rand(instrumentalMala(μ₀, logπ̃, δ²))
+
+    lr = logπ̃(μ̃) + logq(μ₀, μ̃) - (logπ̃(μ₀) + logq(μ̃, μ₀))
 
     if lr > log(rand())
         return μ̃, true
     else
         return μ[k, i-1], false
     end
+end
+
+
+"""
+"""
+function instrumentalMala(μ::Real, f::Function, δ²::Real)
+
+    ∇f = ForwardDiff.derivative(f, μ)
+
+    return Normal(μ + δ² / 2 * ∇f, δ²)
+
 end
 
 
@@ -102,7 +116,7 @@ end
 
 
 """
-    latentlevelloglike(k, i, value; κᵤ, W, μ)
+    latentlevellogpdf(k, i, value; κᵤ, W, μ)
 
 Compute the log-likelihhod at the latent level evaluated at `value` knowing the neighbors' location parameter.
 
@@ -115,7 +129,7 @@ Compute the log-likelihhod at the latent level evaluated at `value` knowing the 
 - `W::SparseMatrixCSC`: Structure matrix of the inferred GMRF.
 - `μ::Matrix{<:Real}`: Last updated trace of the location parameter for each grid cell.
 """
-function latentlevelloglike(k::Integer, i::Integer, value::Real; κᵤ::Real, W::SparseMatrixCSC, μ::Matrix{<:Real})
+function latentlevellogpdf(k::Integer, i::Integer, value::Real; κᵤ::Real, W::SparseMatrixCSC, μ::Matrix{<:Real})
     return logpdf(fcIGMRF(k, i, κᵤ=κᵤ, W=W, μ=μ), value)
 end
 
