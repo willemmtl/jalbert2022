@@ -1,7 +1,7 @@
 using Test, Distributions
 
 include("../gibbs.jl");
-include("../iGMRF.jl");
+
 
 @testset "gibbs.jl" begin
 
