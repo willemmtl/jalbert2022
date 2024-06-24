@@ -1,7 +1,6 @@
 using ForwardDiff
 using Distributions: loglikelihood
 
-include("metropolis.jl")
 include("iGMRF.jl")
 
 """
@@ -98,7 +97,7 @@ Apply the one-iteration Metropolis algorithm to all of the cells in the same gri
 - `logL::Vector{<:Real}`: Data-level log-likelihood difference for each cell (between candidates and last value).
 - `ind::Vector{<:Integer}`: Cells' indices of the current partition.
 """
-function subsetMala(F::iGMRF, μꜝ::Vector{<:Real}, μ̃::Vector{<:Real}, logL::Vector{<:Real}, ind::Vector{<:Integer})
+function subsetMala(F::iGMRF, μꜝ::Vector{<:Real}, μ̃::Vector{<:Real}, ind::Vector{<:Integer})
 
     pd = fcIGMRF(F, μꜝ)[ind]
 
