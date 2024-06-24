@@ -70,19 +70,29 @@ Consist in a one-iteration Metropolis algorithm.
 """
 function updateμₖ(k::Integer, i::Integer, μ::Matrix{<:Real}, δ²::Real, y::Vector{<:Real}, κᵤ::Real)
 
+    println("k = ", k)
+    println("i = ", i)
     μ₀ = μ[k, i-1]
 
-    logπ̃(μ̃::Real) = datalevelloglike(μ̃, y) + latentlevellogpdf(k, i, μ̃; κᵤ=κᵤ, W=W, μ=μ)
-    logq(μ₀::Real, μ̃::Real) = logpdf(instrumentalMala(μ₀, logπ̃, δ²), μ̃)
+    logπ̃(var::Real) = fcμ(var, k=k, i=i, data=y, κᵤ=κᵤ, W=W, μ=μ)
+    logq(param::Real, var::Real) = logpdf(instrumentalMala(param, logπ̃, δ²), var)
 
     μ̃ = rand(instrumentalMala(μ₀, logπ̃, δ²))
+    println("μ̃ = ", μ̃)
 
     lr = logπ̃(μ̃) + logq(μ₀, μ̃) - (logπ̃(μ₀) + logq(μ̃, μ₀))
+    println("logπ̃(μ̃) = ", logπ̃(μ̃))
+    println("logq(μ₀, μ̃) = ", logq(μ₀, μ̃))
+    println("logπ̃(μ₀) = ", logπ̃(μ₀))
+    println("logq(μ̃, μ₀) = ", logq(μ̃, μ₀))
+    println("lr = ", lr)
 
     if lr > log(rand())
+        println("ACCEPTED")
         return μ̃, true
     else
-        return μ[k, i-1], false
+        println("REJECTED")
+        return μ₀, false
     end
 end
 
@@ -91,9 +101,18 @@ end
 """
 function instrumentalMala(μ::Real, f::Function, δ²::Real)
 
-    ∇f = ForwardDiff.derivative(f, μ)
+    ∇f(μ::Real) = ForwardDiff.derivative(f, μ)
 
-    return Normal(μ + δ² / 2 * ∇f, δ²)
+    return Normal(μ + δ² / 2 * ∇f(μ), δ²)
+
+end
+
+
+"""
+"""
+function fcμ(var::Real; k::Integer, i::Integer, data::Vector{<:Real}, κᵤ::Real, W::SparseMatrixCSC, μ::Matrix{<:Real})
+
+    return datalevelloglike(var, data) + latentlevellogpdf(k, i, var; κᵤ=κᵤ, W=W, μ=μ)
 
 end
 
