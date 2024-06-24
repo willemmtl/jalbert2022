@@ -71,10 +71,9 @@ function sampleμ(F::iGMRF, μ::Matrix{<:Real}, i::Integer; δ²::Real, y::Vecto
     qLangevin = instrumentalMala(F, μꜝ, y, δ²)
     μ̃ = rand.(qLangevin)
 
-    logL = datalevelloglike.(μ̃, y) - datalevelloglike.(μꜝ, y)
     for j in eachindex(F.G.condIndSubsets)
         ind = F.G.condIndSubsets[j]
-        accepted = subsetMala(F, μꜝ, μ̃, logL, ind)
+        accepted = subsetMala(F, μꜝ, μ̃, ind)
         setindex!(μꜝ, μ̃[ind][accepted], ind[accepted])
         acc[ind[accepted]] .= true
     end
