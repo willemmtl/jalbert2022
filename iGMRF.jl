@@ -135,6 +135,49 @@ end
 
 
 """
+    latentlevelloglike(F, μ)
+
+Compute the log-likelihhod at the data level evaluated at `μ` knowing the iGMRF `F`.
+
+Perform the computings for the whole grid at the same time.
+
+# Arguments
+
+- `F::iGMRF`: Inferred iGMRF.
+- `μ::Vector{<:Real}`: Location parameters.
+"""
+function latentlevelloglike(F::iGMRF, μ::Vector{<:Real})
+
+    pd = fcIGMRF(F, μ)
+
+    return logpdf.(pd, μ)
+
+end
+
+
+"""
+    latentlevelloglike(F, μ, ind)
+
+Compute the log-likelihhod at the data level evaluated at `μ` knowing the iGMRF `F`.
+
+Perform the computings for an entire partition at the same time.
+
+# Arguments
+
+- `F::iGMRF`: Inferred iGMRF.
+- `μ::Vector{<:Real}`: Location parameters.
+- `ind::Vector{<:Integer}`: Indices of the current partition.
+"""
+function latentlevelloglike(F::iGMRF, μ::Vector{<:Real}, ind::Vector{<:Integer})
+
+    pd = fcIGMRF(F, μ)[ind]
+
+    return logpdf.(pd, μ[ind])
+
+end
+
+
+"""
     fcIGMRF(F, μ₀)
 
 Compute the probability density of the full conditional function of the GEV's location parameter due to the iGMRF.
@@ -150,5 +193,48 @@ function fcIGMRF(F::iGMRF, μ::Vector{<:Real})
     b = -F.κᵤ * (F.G.W̄ * μ)
 
     return NormalCanon.(b, Q)
+
+end
+
+
+"""
+    fcκᵤ(F, μ)
+
+Compute the probability density of the full conditional function of the iGMRF's precision parameter.
+
+# Arguments
+
+- `F::iGMRF`: Inferred GMRF.
+- `μ::Vector{<:Real}`: Last updated value of the location parameter for each grid cell.
+"""
+function fcκᵤ(F::iGMRF, μ::Vector{<:Real})
+
+    μ̄ = neighborsMutualEffect(F, μ)
+
+    m = size(μ, 1)
+    α = m / 2 + 1
+    β = sum(dot(diag(F.G.W), (μ .- μ̄) .^ 2)) / 2 + 1 / 100
+
+    return Gamma(α, 1 / β)
+
+end
+
+
+"""
+    neighborsMutualEffect(F, μ)
+
+Compute the neighbors effect's term for each grid cell at the same time.
+
+# Arguments
+
+- `F::iGMRF`: Inferred GMRF.
+- `μ::Vector{<:Real}`: Value of the location parameter for each grid cell.
+"""
+function neighborsMutualEffect(F::iGMRF, μ::Vector{<:Real})
+
+    W⁻ = F.G.W - spdiagm(diag(F.G.W))
+    W⁻μ = W⁻ * μ
+
+    return -spdiagm(1 ./ diag(F.G.W)) * W⁻μ
 
 end

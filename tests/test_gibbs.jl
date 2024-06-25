@@ -24,4 +24,15 @@ include("../gibbs.jl");
 
     end
 
+    # @testset "subsetMala(F, μꜝ, μ̃, ind" begin
+
+    #     F = iGMRF(2, 2, 1)
+    #     μꜝ = []
+    #     μ̃ = ones(4)
+    #     ind = [1, 4]
+
+    #     @test fcκᵤ(μ, W=W) == Gamma(3, 100 / 401)
+
+    # end
+
 end
