@@ -4,12 +4,10 @@ include("GMRF.jl");
 include("grid.jl");
 include("gibbs.jl");
 
-function evaluate(N; nobs::Integer, niter::Integer)
+function evaluate(N; nobs::Integer, niter::Integer, m₁::Integer, m₂::Integer)
 
     Random.seed!(400);
 
-    m₁ = 3;
-    m₂ = 3;
     m = m₁ * m₂;
     κᵤ = 100.0;
     F = iGMRF(m₁, m₂, κᵤ);
@@ -43,4 +41,4 @@ function evaluate(N; nobs::Integer, niter::Integer)
     println("Temps d'exécution = ", mean(times))
 end
 
-evaluate(10, nobs=1000, niter=10000);
+evaluate(10, nobs=1000, niter=10000, m₁=10, m₂=10);
