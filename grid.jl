@@ -31,11 +31,9 @@ function generateTargetGridV1(F::iGMRF)
 end
 
 function generateGEVParamV1(F::iGMRF)
-    # Nombre total de cellules
-    m = m₁ * m₂
     # Génère les effets spatiaux
     s = sample(F)
     # Il n'y a pas de variable explicative
     # On renvoie donc directement les effets spatiaux
-    return reshape(s, m₁, m₂)'
+    return reshape(s, F.m₁, F.m₂)'
 end

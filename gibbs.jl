@@ -36,7 +36,7 @@ function gibbs(niter::Integer, y::Array{Float64,3}; δ²::Real, κᵤ₀::Real, 
     for i = 2:niter
         # Generate μᵢ | κᵤ, μ₋ᵢ
         for k = 1:m
-            μ[k, i], acc[k, i] = updateμₖ(k, i, μ, δ², y[k, :], κᵤ[i-1])
+            μ[k, i], acc[k, i] = updateμₖ(k, i, μ, δ², y[k, :], κᵤ[i-1], W)
         end
         # Generate κᵤ
         κᵤ[i] = rand(fcκᵤ(μ[:, i], W=W))
@@ -67,7 +67,7 @@ Consist in a one-iteration Metropolis algorithm.
 - `y::Vector{<:Real}`: Observations for cell k.
 - `κᵤ::Real`: Last updated value of the precision parameter.
 """
-function updateμₖ(k::Integer, i::Integer, μ::Matrix{<:Real}, δ²::Real, y::Vector{<:Real}, κᵤ::Real)
+function updateμₖ(k::Integer, i::Integer, μ::Matrix{<:Real}, δ²::Real, y::Vector{<:Real}, κᵤ::Real, W::SparseMatrixCSC)
 
     μ̃ = rand(Normal(μ[k, i-1], δ²))
     μ₀ = μ[k, i-1]
