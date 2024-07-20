@@ -30,10 +30,10 @@ function evaluate(N; nobs::Integer, niter::Integer)
         endTime = time()
         times[n] = endTime - startTime
 
-        μ̂ = θ[2:end, end];
+        μ̂ = mean(θ[2:end, end], dims=2);
         κ̂ᵤ[n] = θ[1, end];
 
-        distances[n] = norm(reshape(μ̂[:, end], m₁, m₂) .- grid_target[:, :, 1], 2) / m
+        distances[n] = norm(reshape(μ̂, m₁, m₂) .- grid_target[:, :, 1], 2) / m
     end
 
     println("κ̂ᵤ = ", mean(κ̂ᵤ))
