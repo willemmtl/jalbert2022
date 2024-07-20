@@ -4,21 +4,19 @@ include("iGMRF.jl");
 include("dataGen.jl");
 include("malaWG.jl");
 
-function evaluate(N; nobs::Integer, niter::Integer)
+function evaluate(N; nobs::Integer, niter::Integer, m₁::Integer, m₂::Integer)
 
     Random.seed!(400);
 
-    m₁ = 3;
-    m₂ = 3;
+    m = m₁ * m₂;
     κᵤ = 100.0;
     F = iGMRF(m₁, m₂, κᵤ);
     grid_target = generateTargetGrid(F);
     data = generateData(grid_target, nobs);
 
-    h = 0.0006;
-    m = m₁ * m₂;
+    h = 0.0004;
     θ₀ = vcat([10], zeros(m));
-    F = iGMRF(3, 3, 1);
+    F = iGMRF(m₁, m₂, 1);
 
     κ̂ᵤ = zeros(N);
     distances = zeros(N);
@@ -41,4 +39,4 @@ function evaluate(N; nobs::Integer, niter::Integer)
     println("Temps d'exécution = ", mean(times))
 end
 
-evaluate(10, nobs=1000, niter=10000);
+evaluate(10, nobs=1000, niter=1000, m₁=6, m₂=6);
