@@ -4,7 +4,7 @@ include("iGMRF.jl");
 include("dataGen.jl");
 include("gibbs.jl");
 
-function evaluate(N; nobs::Integer, niter::Integer, m₁::Integer, m₂::Integer)
+function evaluate(N; nobs::Integer, niter::Integer, m₁::Integer, m₂::Integer, warming_size::Integer)
 
     Random.seed!(400);
 
@@ -14,7 +14,6 @@ function evaluate(N; nobs::Integer, niter::Integer, m₁::Integer, m₂::Integer
     grid_target = generateTargetGrid(F);
     data = generateData(grid_target, nobs);
 
-    niter = 1000;
     δ² = 0.07;
     κᵤ₀ = 10;
     μ₀ = zeros(m);
@@ -29,8 +28,8 @@ function evaluate(N; nobs::Integer, niter::Integer, m₁::Integer, m₂::Integer
         endTime = time()
         times[n] = endTime - startTime
 
-        μ̂ = mean(μ, dims=2);
-        κ̂ᵤ[n] = mean(κᵤ);
+        μ̂ = mean(μ[:, warming_size:end], dims=2);
+        κ̂ᵤ[n] = mean(κᵤ[warming_size:end]);
 
         distances[n] = norm(reshape(μ̂, m₁, m₂) .- grid_target[:, :, 1], 2) / m
     end
@@ -40,4 +39,4 @@ function evaluate(N; nobs::Integer, niter::Integer, m₁::Integer, m₂::Integer
     println("Temps d'exécution = ", mean(times))
 end
 
-evaluate(10, nobs=1000, niter=10000, m₁=10, m₂=10);
+evaluate(10, nobs=1000, niter=1000, m₁=6, m₂=6, warming_size=200);
