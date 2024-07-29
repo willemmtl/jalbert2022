@@ -4,7 +4,7 @@ include("iGMRF.jl");
 include("dataGen.jl");
 include("malaWG.jl");
 
-function evaluate(N; nobs::Integer, niter::Integer, m₁::Integer, m₂::Integer)
+function evaluate(N; nobs::Integer, niter::Integer, m₁::Integer, m₂::Integer, warming_size::Integer)
 
     Random.seed!(400);
 
@@ -14,9 +14,9 @@ function evaluate(N; nobs::Integer, niter::Integer, m₁::Integer, m₂::Integer
     grid_target = generateTargetGrid(F);
     data = generateData(grid_target, nobs);
 
-    h = 0.0004;
+    h = 0.0005;
     θ₀ = vcat([10], zeros(m));
-    F = iGMRF(m₁, m₂, 1);
+    F = iGMRF(m₁, m₂, 10);
 
     κ̂ᵤ = zeros(N);
     distances = zeros(N);
@@ -28,8 +28,8 @@ function evaluate(N; nobs::Integer, niter::Integer, m₁::Integer, m₂::Integer
         endTime = time()
         times[n] = endTime - startTime
 
-        μ̂ = mean(θ[2:end, end], dims=2);
-        κ̂ᵤ[n] = θ[1, end];
+        μ̂ = mean(θ[2:end, warming_size:end], dims=2);
+        κ̂ᵤ[n] = mean(θ[1, warming_size:end]);
 
         distances[n] = norm(reshape(μ̂, m₁, m₂) .- grid_target[:, :, 1], 2) / m
     end
@@ -39,4 +39,4 @@ function evaluate(N; nobs::Integer, niter::Integer, m₁::Integer, m₂::Integer
     println("Temps d'exécution = ", mean(times))
 end
 
-evaluate(10, nobs=1000, niter=1000, m₁=6, m₂=6);
+evaluate(10, nobs=1000, niter=1000, m₁=6, m₂=6, warming_size=200);
