@@ -41,4 +41,4 @@ function evaluate(N; nobs::Integer, niter::Integer, m₁::Integer, m₂::Integer
     println("Temps d'exécution = ", mean(times))
 end
 
-evaluate(10, nobs=1000, niter=10000, m₁=10, m₂=10);
+evaluate(10, nobs=1000, niter=10000, m₁=3, m₂=3);
