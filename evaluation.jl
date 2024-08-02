@@ -31,7 +31,7 @@ function evaluate(N; nobs::Integer, niter::Integer, m₁::Integer, m₂::Integer
         μ̂ = mean(θ[2:end, warming_size:end], dims=2);
         κ̂ᵤ[n] = mean(θ[1, warming_size:end]);
 
-        distances[n] = norm(reshape(μ̂, m₁, m₂) .- grid_target[:, :, 1], 2) / m
+        distances[n] = norm(reshape(μ̂, m₁, m₂)' .- grid_target[:, :, 1], 2) / m
     end
 
     println("κ̂ᵤ = ", mean(κ̂ᵤ))
