@@ -35,7 +35,7 @@ function generateGEVParam(F::iGMRF)
     # Nombre total de cellules
     m = F.G.m₁ * F.G.m₂
     # Génère les effets spatiaux
-    s = sample(F)
+    s = sampleIGMRF(F)
     # Il n'y a pas de variable explicative
     # On renvoie donc directement les effets spatiaux
     return reshape(s, F.G.m₁, F.G.m₂)'
