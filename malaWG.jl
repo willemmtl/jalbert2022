@@ -3,7 +3,17 @@ using Mamba, Distributions, ForwardDiff, LinearAlgebra
 include("iGMRF.jl")
 
 """
+    malaWG(niter, h, θ₀; Y, F)
 
+Perform a MALA Within Gibbs algorithm.
+
+# Arguments
+
+- `niter::Integer`: Number of gibbs iterations.
+- `h::Real`: Instrumental variance of MALA.
+- `θ₀::Vector{<:Real}`: Initial values.
+- `Y::Vector{Vector{Float64}}`: Observations.
+- `F::iGMRF`: iGMRF (no need to be updated).
 """
 function malaWG(niter::Integer, h::Real, θ₀::Vector{<:Real}; Y::Vector{Vector{Float64}}, F::iGMRF)
 
