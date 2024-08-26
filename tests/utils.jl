@@ -4,7 +4,7 @@ using Test
     
     @testset "reshape(v, m₁, m₂)" begin
         
-        v = [1, 2, 3, 4, 5, 6, 7, 8, 9]
+        v = Matrix([1, 2, 3, 4, 5, 6, 7, 8, 9]')
 
         r = reshape(v, 3, 3)
 
