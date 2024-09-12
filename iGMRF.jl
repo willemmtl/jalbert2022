@@ -147,6 +147,7 @@ Compute the probability density of the full conditional function of the iGMRF's 
 function fcκᵤ(F::iGMRF, μ::Vector{<:Real})
 
     μ̄ = neighborsMutualEffect(F, μ)
+    # println("μ̄ = ", μ̄)
 
     m = size(μ, 1)
     α = m / 2 + 1
