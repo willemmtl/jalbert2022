@@ -3,7 +3,7 @@ using Mamba, Distributions, ForwardDiff, LinearAlgebra
 include("../iGMRF.jl")
 
 """
-    amWG(niter, h, θ₀; Y, F)
+    amWG(niter, h, θ₀; Y, F, nchains)
 
 Perform an Adaptative Metropolis Within Gibbs algorithm.
 
