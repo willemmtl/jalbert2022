@@ -3,9 +3,9 @@ using Mamba, Distributions, ForwardDiff, LinearAlgebra
 include("iGMRF.jl")
 
 """
-    malaWG(niter, h, θ₀; Y, F)
+    nutsWG(niter, h, θ₀; Y, F)
 
-Perform a MALA Within Gibbs algorithm.
+Perform a NUTS Within Gibbs algorithm.
 
 # Arguments
 
@@ -16,7 +16,7 @@ Perform a MALA Within Gibbs algorithm.
 - `F::iGMRF`: iGMRF (no need to be updated).
 - `nchains::Integer` : Number of chaines for each parameter.
 """
-function malaWG(niter::Integer, h::Real, θ₀::Vector{<:Real}; Y::Vector{Vector{Float64}}, F::iGMRF, nchains::Integer)
+function nutsWG(niter::Integer, θ₀::Vector{<:Real}; Y::Vector{Vector{Float64}}, F::iGMRF, nchains::Integer)
 
     m = F.G.m₁ * F.G.m₂
     κᵤ = zeros(niter, nchains)
@@ -43,10 +43,9 @@ function malaWG(niter::Integer, h::Real, θ₀::Vector{<:Real}; Y::Vector{Vector
                 sample!(theta, adapt=true)
                 fakeChain[p, :, 1] = theta
             end
-            # println(changerate(fakeChain))
 
             μ[j, :, numc] = theta
-            
+
             # Generate κᵤ
             κᵤ[j, numc] = rand(fcκᵤ(F, μ.value[j, :, numc]))
         end
