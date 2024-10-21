@@ -5,3 +5,5 @@ struct GridStructure
     W::SparseMatrixCSC
     W̄::SparseMatrixCSC
 end
+
+println("hello");
